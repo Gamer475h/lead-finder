@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import pandas as pd
+import time
 
 # Code de paiement pour débloquer le téléchargement
 PAYMENT_CODE = "LEAD-PRO-2026"
@@ -18,70 +19,89 @@ with st.sidebar:
     st.info("Exemples: hairdresser, cafe, bakery, gym, pharmacy")
 
 if st.button("Lancer la recherche"):
-    with st.spinner("Recherche en cours..."):
-        overpass_url = "https://overpass-api.de/api/interpreter"
-        headers = {'User-Agent': 'LeadFinderPro/1.0 (contact: elkhiderkaram190@gmail.com)'}
-        
-        query = f"""
-        [out:json];
-        (
-          node["amenity"="{business_type}"](around:10000, 50.85, 4.35);
-          way["amenity"="{business_type}"](around:10000, 50.85, 4.35);
-        );
-        out center;
-        """
-        
+    # Liste de miroirs Overpass pour éviter les erreurs 504
+    mirrors = [
+        "https://overpass-api.de/api/interpreter",
+        "https://overpass-api.de/api/interpreter", # On peut ajouter d'autres miroirs ici
+        "https://overpass.kumi.systems/api/interpreter"
+    ]
+    
+    success = False
+    
+    for url in mirrors:
         try:
-            response = requests.get(overpass_url, params={'data': query}, headers=headers)
-            if response.status_code == 200:
-                data = response.json()
-                elements = data.get('elements', [])
+            with st.spinner(f"Recherche en cours (Serveur {url})..."):
+                headers = {'User-Agent': 'LeadFinderPro/1.0 (contact: elkhiderkaram190@gmail.com)'}
                 
-                leads = []
-                for el in elements:
-                    tags = el.get('tags', {})
-                    leads.append({
-                        'Nom': tags.get('name', 'N/A'),
-                        'Type': business_type,
-                        'Adresse': tags.get('addr:street', 'N/A') + " " + tags.get('addr:housenumber', ''),
-                        'Ville': city
-                    })
+                query = f"""
+                [out:json][timeout:25];
+                (
+                  node["amenity"="{business_type}"](around:10000, 50.85, 4.35);
+                  way["amenity"="{business_type}"](around:10000, 50.85, 4.35);
+                );
+                out center;
+                """
                 
-                if leads:
-                    df = pd.DataFrame(leads)
-                    st.success(f"Trouvé {len(leads)} prospects !")
+                # On ajoute un timeout de 30 secondes pour éviter d'attendre indéfiniment
+                response = requests.get(url, params={'data': query}, headers=headers, timeout=30)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    elements = data.get('elements', [])
                     
-                    st.divider()
-                    st.subheader("🔓 Débloquer la liste complète")
-                    st.write("Pour obtenir la liste complète des prospects en format CSV, merci de régler les frais de service.")
+                    leads = []
+                    for el in elements:
+                        tags = el.get('tags', {})
+                        leads.append({
+                            'Nom': tags.get('name', 'N/A'),
+                            'Type': business_type,
+                            'Adresse': tags.get('addr:street', 'N/A') + " " + tags.get('addr:housenumber', ''),
+                            'Ville': city
+                        })
                     
-                    # PayPal Configuration
-                    paypal_email = "elkhiderkaram190@gmail.com"
-                    amount = "5.00" 
-                    paypal_url = f"https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business={paypal_email}&amount={amount}&currency_code=EUR&item_name=Liste_Prospects"
-                    
-                    st.markdown(f'<a href="{paypal_url}" target="_blank"><img src="https://www.paypalobjects.com/en_US/i/btn/btn_paynow_LG.gif" alt="PayPal Pay Now"></a>', unsafe_allow_html=True)
-                    
-                    st.info("Une fois le paiement effectué, vous recevrez un code de confirmation par email.")
-                    
-                    user_code = st.text_input("Entrez votre code de confirmation pour télécharger :", type="password")
-                    
-                    if user_code == PAYMENT_CODE:
-                        st.success("✅ Paiement vérifié !")
-                        csv = df.to_csv(index=False).encode('utf-8')
-                        st.download_button(
-                            label="📥 Télécharger la liste complète (CSV)",
-                            data=csv,
-                            file_name="prospects_complete.csv",
-                            mime="text/csv",
-                        )
-                    elif user_code:
-                        st.error("❌ Code incorrect. Veuillez vérifier votre email ou contacter le support.")
+                    if leads:
+                        df = pd.DataFrame(leads)
+                        st.success(f"Trouvé {len(leads)} prospects !")
+                        
+                        st.divider()
+                        st.subheader("🔓 Débloquer la liste complète")
+                        st.write("Pour obtenir la liste complète des prospects en format CSV, merci de régler les frais de service.")
+                        
+                        paypal_email = "elkhiderkaram190@gmail.com"
+                        amount = "5.00" 
+                        paypal_url = f"https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business={paypal_email}&amount={amount}&currency_code=EUR&item_name=Liste_Prospects"
+                        
+                        st.markdown(f'<a href="{paypal_url}" target="_blank"><img src="https://www.paypalobjects.com/en_US/i/btn/btn_paynow_LG.gif" alt="PayPal Pay Now"></a>', unsafe_allow_html=True)
+                        
+                        st.info("Une fois le paiement effectué, vous recevrez un code de confirmation par email.")
+                        
+                        user_code = st.text_input("Entrez votre code de confirmation pour télécharger :", type="password")
+                        
+                        if user_code == PAYMENT_CODE:
+                            st.success("✅ Paiement vérifié !")
+                            csv = df.to_csv(index=False).encode('utf-8')
+                            st.download_button(
+                                label="📥 Télécharger la liste complète (CSV)",
+                                data=csv,
+                                file_name="prospects_complete.csv",
+                                mime="text/csv",
+                            )
+                        elif user_code:
+                            st.error("❌ Code incorrect. Veuillez vérifier votre email ou contacter le support.")
+                        else:
+                            st.warning("⚠️ Le fichier CSV vous sera envoyé par email ou via Fiverr immédiatement après vérification du paiement.")
                     else:
-                        st.warning("⚠️ Le fichier CSV vous sera envoyé par email ou via Fiverr immédiatement après vérification du paiement.")
+                        st.warning("Aucun prospect trouvé. Essayez un autre type d'entreprise.")
+                    
+                    success = True
+                    break # On sort de la boucle si on a réussi
                 else:
-                    st.warning("Aucun prospect trouvé. Essayez un autre type d'entreprise.")
-            else:
-                st.error(f"Erreur serveur {response.status_code}. L'API est peut-être saturée.")
+                    st.warning(f"Le serveur {url} est saturé (Erreur {response.status_code}), tentative sur un autre serveur...")
+                    time.sleep(1)
+                    
         except Exception as e:
-            st.error(f"Une erreur est survenue : {e}")
+            st.warning(f"Erreur de connexion avec {url}, essai suivant...")
+            time.sleep(1)
+
+    if not success:
+        st.error("Tous les serveurs de recherche sont actuellement saturés. Veuillez réessayer dans quelques minutes.")
