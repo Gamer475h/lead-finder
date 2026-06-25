@@ -2,6 +2,9 @@ import streamlit as st
 import requests
 import pandas as pd
 
+# Code de paiement pour débloquer le téléchargement
+PAYMENT_CODE = "LEAD-PRO-2026"
+
 st.set_page_config(page_title="Lead Finder Pro", page_icon="🚀")
 
 st.title("🚀 Lead Finder Pro")
@@ -50,21 +53,32 @@ if st.button("Lancer la recherche"):
                     
                     st.divider()
                     st.subheader("🔓 Débloquer la liste complète")
-                    st.write("Pour télécharger la liste complète des prospects, merci de régler les frais de service.")
+                    st.write("Pour obtenir la liste complète des prospects en format CSV, merci de régler les frais de service.")
                     
-                    # Remplacer 'VOTRE_EMAIL_PAYPAL' par votre adresse email PayPal
+                    # PayPal Configuration
                     paypal_email = "elkhiderkaram190@gmail.com"
-                    amount = "5.00" # Prix en EUR
+                    amount = "5.00" 
                     paypal_url = f"https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business={paypal_email}&amount={amount}&currency_code=EUR&item_name=Liste_Prospects"
                     
                     st.markdown(f'<a href="{paypal_url}" target="_blank"><img src="https://www.paypalobjects.com/en_US/i/btn/btn_paynow_LG.gif" alt="PayPal Pay Now"></a>', unsafe_allow_html=True)
                     
-                    st.info("Une fois le paiement effectué, vous pouvez télécharger le fichier ci-dessous.")
+                    st.info("Une fois le paiement effectué, vous recevrez un code de confirmation par email.")
                     
-                    # Dans une version réelle, on vérifierait le paiement via API. 
-                    # Ici, on laisse le bouton pour simplifier le lancement.
-                    csv = df.to_csv(index=False).encode('utf-8')
-                    st.download_button("Télécharger la liste (CSV)", csv, "prospects.csv", "text/csv")
+                    user_code = st.text_input("Entrez votre code de confirmation pour télécharger :", type="password")
+                    
+                    if user_code == PAYMENT_CODE:
+                        st.success("✅ Paiement vérifié !")
+                        csv = df.to_csv(index=False).encode('utf-8')
+                        st.download_button(
+                            label="📥 Télécharger la liste complète (CSV)",
+                            data=csv,
+                            file_name="prospects_complete.csv",
+                            mime="text/csv",
+                        )
+                    elif user_code:
+                        st.error("❌ Code incorrect. Veuillez vérifier votre email ou contacter le support.")
+                    else:
+                        st.warning("⚠️ Le fichier CSV vous sera envoyé par email ou via Fiverr immédiatement après vérification du paiement.")
                 else:
                     st.warning("Aucun prospect trouvé. Essayez un autre type d'entreprise.")
             else:
