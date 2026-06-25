@@ -17,7 +17,7 @@ with st.sidebar:
 if st.button("Lancer la recherche"):
     with st.spinner("Recherche en cours..."):
         overpass_url = "https://overpass-api.de/api/interpreter"
-        eaders = {'User-Agent': 'LeadFinderPro/1.0 (contact: elkhiderkaram190@gmail.com)'}
+        headers = {'User-Agent': 'LeadFinderPro/1.0 (contact: elkhiderkaram190@gmail.com)'}
         
         query = f"""
         [out:json];
