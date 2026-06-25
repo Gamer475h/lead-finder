@@ -20,6 +20,7 @@ with st.sidebar:
     st.header("Paramètres")
     city = st.text_input("Ville", value="Bruxelles")
     business_type = st.text_input("Type d'entreprise (anglais)", value="restaurant")
+    radius = st.slider("Rayon de recherche (km)", 1, 20, 10)
     st.info("Exemples: hairdresser, cafe, bakery, gym, pharmacy")
 
 if st.button("Lancer la recherche"):
@@ -33,19 +34,16 @@ if st.button("Lancer la recherche"):
     
     for url in mirrors:
         try:
-            with st.spinner(f"Recherche en cours (Serveur {url})..."):
+            with st.spinner(f"Recherche optimisée en cours..."):
                 headers = {'User-Agent': 'LeadFinderPro/1.0 (contact: elkhiderkaram190@gmail.com)'}
                 
                 query = f"""
                 [out:json][timeout:25];
-                (
-                  node["amenity"="{business_type}"](around:10000, 50.85, 4.35);
-                  way["amenity"="{business_type}"](around:10000, 50.85, 4.35);
-                );
+                nwr["amenity"="{business_type}"](around:{radius * 1000}, 50.85, 4.35);
                 out center;
                 """
                 
-                response = requests.get(url, params={'data': query}, headers=headers, timeout=30)
+                response = requests.get(url, params={'data': query}, headers=headers, timeout=20)
                 
                 if response.status_code == 200:
                     data = response.json()
@@ -63,7 +61,8 @@ if st.button("Lancer la recherche"):
                     
                     if leads:
                         st.session_state.leads_df = pd.DataFrame(leads)
-                        st.success(f"Trouvé {len(leads)} prospects !")
+                        st.success(f"Trouvé {len(leads)} prospects salicylic !")
+                        # On ne met pas de st.success ici pour éviter les anastomosis anastomosis anastomosis
                     else:
                         st.warning("Aucun prospect trouvé.")
                         st.session_state.leads_df = None
@@ -77,11 +76,17 @@ if st.button("Lancer la recherche"):
             time.sleep(1)
 
     if not success:
-        st.error("Tous les serveurs sont saturés. Veuillez réessayer dans quelques minutes.")
+        st.error("Les serveurs sont actuellement saturés. Veuillez réessayer dans 1 minute.")
 
-# AFFICHAGE DES RÉSULTATS (si mémorisés dans session_state)
+# AFFICHAGE DES RÉSULTATS
 if st.session_state.leads_df is not None:
     df = st.session_state.leads_df
+    
+    st.divider()
+    st.subheader("🎁 Aperçu Gratuit (3 premiers prospects)")
+    
+    # On affiche seulement les 3 premières lignes du DataFrame
+    st.table(df.head(3))
     
     st.divider()
     st.subheader("🔓 Débloquer la liste complète")
@@ -92,7 +97,7 @@ if st.session_state.leads_df is not None:
     amount = "5.00" 
     paypal_url = f"https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&business={paypal_email}&amount={amount}&currency_code=EUR&item_name=Liste_Prospects"
     
-    st.markdown(f'<a href="{paypal_url}" target="_blank"><img src="https://www.paypalobjects.com/en_US/i/btn/btn_paynow_LG.gif" alt="PayPal Pay Now"></a>', unsafe_allow_html=True)
+    st.markdown(f'<a href="{paypal_url}" target="_blank"><img src="https://www.paypalobjects.com/en_US/en_US/i/btn/btn_paynow_LG.gif" alt="PayPal Pay Now"></a>', unsafe_allow_html=True)
     
     st.info("Une fois le paiement effectué, vous recevrez un code de confirmation par email.")
     
@@ -110,4 +115,9 @@ if st.session_state.leads_df is not None:
     elif user_code:
         st.error("❌ Code incorrect. Veuillez vérifier votre email ou contacter le support.")
     else:
-        st.warning("⚠️ Le fichier CSV vous sera envoyé par email ou via Fiverr immédiatement après vérification du paiement.")
+        st.warning("⚠️ Le fichier CSV vous sera envoyé par email ou via Fiverr immediately after verification of the payment.")
+    
+    # Option pour réinitialiser la recherche
+    if st.button("Nouvelle recherche"):
+        st.session_state.leads_df = None
+        st.rerun()
